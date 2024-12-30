@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Kontrol Sistemi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <style>
+        .loading {
+            display: none;
+        }
+        .result-item {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .working {
+            background-color: #d4edda;
+        }
+        .not-working {
+            background-color: #f8d7da;
+        }
+        #dataTable {
+            width: 100%;
+            margin-top: 20px;
+        }
+        #dataTable th, #dataTable td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+        #dataTable th {
+            background-color: #f8f9fa;
+            position: relative;
+            cursor: pointer;
+        }
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .column-select {
+            margin-bottom: 5px;
+        }
+        .column-select input[type="checkbox"] {
+            cursor: pointer;
+        }
+        .row-selector {
+            cursor: pointer;
+        }
+        .delete-column {
+            position: absolute;
+            right: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: red;
+            font-size: 12px;
+            display: none;
+        }
+        th:hover .delete-column {
+            display: inline;
+        }
+        .cell-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            width: 100%;
+            position: relative;
+        }
+        .cell-checkbox {
+            display: none;
+        }
+        .cell-select {
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            color: #0d6efd;
+            font-size: 16px;
+            background: white;
+            border-radius: 50%;
+            padding: 2px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .cell-container:hover .cell-select {
+            opacity: 1;
+            right: -25px;
+        }
+        .cell-selected .cell-select {
+            opacity: 1;
+            right: -25px;
+            color: #198754;
+            background: #e7f3ff;
+        }
+        .cell-content {
+            flex-grow: 1;
+            min-height: 24px;
+            padding: 4px 8px;
+            cursor: text;
+            border-radius: 4px;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid transparent;
+        }
+        .cell-content:hover {
+            border-color: #dee2e6;
+            background-color: #f8f9fa;
+        }
+        .cell-selected .cell-content {
+            background-color: #e7f3ff;
+            border-color: #0d6efd;
+        }
+        .cell-content:empty:before {
+            content: 'Tıklayıp yazın...';
+            color: #999;
+            font-style: italic;
+        }
+        .table-controls {
+            margin: 20px 0;
+        }
+        .cell-editor {
+            width: 100%;
+            padding: 5px;
+        }
+        .action-buttons {
+            white-space: nowrap;
+        }
+        .selected-row {
+            background-color: #e2e6ea;
+        }
+        .select-all-container {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .select-all-container label {
+            margin-right: 15px;
+            cursor: pointer;
+        }
+        .column-select {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .column-select {
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .delete-column {
+            position: absolute;
+            right: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: red;
+            font-size: 12px;
+            display: none;
+        }
+        .link-working {
+            background-color: #d4edda;
+            padding: 2px 5px;
+            border-radius: 3px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .link-not-working {
+            background-color: #f8d7da;
+            padding: 2px 5px;
+            border-radius: 3px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .status-icon {
+            font-size: 14px;
+        }
+        .selected-cell {
+            background-color: #e7f3ff;
+        }
+        .selected-cell .cell-content {
+            border-color: #0d6efd;
+        }
+        .shake-animation {
+            animation: shake 0.5s;
+        }
+        .alert-floating {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-10px); }
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .error-button {
+            animation: errorPulse 0.5s;
+        }
+        @keyframes errorPulse {
+            0% { background-color: #dc3545; transform: scale(1); }
+            50% { background-color: #dc3545; transform: scale(1.1); }
+            100% { background-color: #198754; transform: scale(1); }
+        }
+        .error-button-flash {
+            animation: errorFlash 0.5s;
+        }
+        @keyframes errorFlash {
+            0% { background-color: #198754; }
+            50% { background-color: #dc3545; }
+            100% { background-color: #198754; }
+        }
+        @keyframes errorShake {
+            0%, 100% { transform: translateX(0); background-color: #dc3545; }
+            25% { transform: translateX(-10px); background-color: #dc3545; }
+            50% { transform: translateX(10px); background-color: #dc3545; }
+            75% { transform: translateX(-10px); background-color: #dc3545; }
+        }
+
+        .error-shake {
+            animation: errorShake 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating Alert -->
+    <div id="alertFloating" class="alert-floating">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span id="alertMessage"></span>
+    </div>
+    <div class="container-fluid mt-5">
+        <h1 class="mb-4">Link Kontrol Sistemi</h1>
+        
+        <div class="row">
+            <!-- Sol Taraf - Yönetim Kartları -->
+            <div class="col-md-3">
+                <!-- Link Yönetimi -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Link Yönetimi</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary w-100 mb-2" onclick="checkSelectedLinks()">Seçili Linkleri Kontrol Et</button>
+                        <button class="btn btn-warning w-100 mb-2" onclick="document.getElementById('tableExcelFile').click()">Excel'den Link Yükle</button>
+                        <input type="file" id="tableExcelFile" accept=".xlsx" style="display: none" onchange="importTableFromExcel(this)">
+                        
+                        <!-- Otomatik Kontrol Özelliği -->
+                        <div class="mt-3 border-top pt-3">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <input type="number" id="checkInterval" class="form-control" value="1" min="1" style="width: 80px">
+                                <span class="me-2">dakika</span>
+                                <button class="btn btn-success flex-grow-1" id="startAutoCheck" onclick="toggleAutoCheck()">
+                                    Otomatik Kontrolü Başlat
+                                </button>
+                            </div>
+                            <div class="d-flex align-items-center gap-3 text-muted small">
+                                <div id="lastCheckTime">Son Kontrol: -</div>
+                                <div id="nextCheckCounter"></div>
+                            </div>
+                            <small class="text-muted mt-1 d-block">Tüm linkleri belirtilen aralıklarla kontrol et</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tablo Yönetimi -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Tablo Yönetimi</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-success w-100 mb-2" onclick="addRow()">Satır Ekle</button>
+                        <button class="btn btn-info w-100 mb-2" onclick="addColumn()">Sütun Ekle</button>
+                        <button class="btn btn-danger w-100 mb-2" onclick="deleteSelected()">Seçilileri Sil</button>
+                        <button class="btn btn-secondary w-100 mb-2" onclick="clearTable()">Tabloyu Temizle</button>
+                        <button class="btn btn-primary w-100 mb-2" onclick="exportToExcel()">
+                            <i class="bi bi-file-earmark-excel"></i> Excel'e Kaydet
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sağ Taraf - Tablo ve Manuel Kontrol -->
+            <div class="col-md-9">
+                <!-- Manuel Link Kontrol ve Sonuçları -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                Manuel Link Kontrol
+                            </div>
+                            <div class="card-body">
+                                <form id="urlForm">
+                                    <div class="mb-3">
+                                        <textarea class="form-control" id="urlList" rows="5" placeholder="Her satıra bir link gelecek şekilde linkleri girin" required></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Linkleri Kontrol Et</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span>Manuel Link Kontrol Sonuçları</span>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="clearManualResults()">
+                                    <i class="bi bi-trash"></i> Sonuçları Temizle
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="manualCheckResults"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ana Tablo -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Tablo</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="dataTable" class="table table-bordered">
+                                <thead>
+                                    <tr></tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading mt-4 text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yükleniyor...</span>
+            </div>
+            <p>Linkler kontrol ediliyor...</p>
+        </div>
+
+        <div id="results" class="mt-4">
+            <h3>Sonuçlar</h3>
+            <div id="resultList"></div>
+        </div>
+    </div>
+
+    <script>
+        let autoCheckInterval = null;
+        let countdownInterval = null;
+
+        function updateLastCheckTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            document.getElementById('lastCheckTime').textContent = `Son Kontrol: ${timeStr}`;
+        }
+
+        function startCountdown(minutes) {
+            let totalSeconds = minutes * 60;
+            const counterElement = document.getElementById('nextCheckCounter');
+            
+            function updateCounter() {
+                const minutesLeft = Math.floor(totalSeconds / 60);
+                const secondsLeft = totalSeconds % 60;
+                counterElement.textContent = `Sonraki Kontrol: ${minutesLeft}:${secondsLeft.toString().padStart(2, '0')}`;
+                if (totalSeconds > 0) {
+                    totalSeconds--;
+                }
+            }
+            
+            updateCounter();
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+            countdownInterval = setInterval(updateCounter, 1000);
+        }
+
+        function toggleAutoCheck() {
+            const button = document.getElementById('startAutoCheck');
+            const intervalInput = document.getElementById('checkInterval');
+            
+            if (autoCheckInterval === null) {
+                // Otomatik kontrolü başlat
+                const minutes = parseInt(intervalInput.value);
+                if (minutes < 1) {
+                    showFloatingAlert('Lütfen en az 1 dakika giriniz!');
+                    return;
+                }
+                
+                // Önce tabloda link var mı kontrol et
+                const cells = document.querySelectorAll('.cell-content');
+                const hasLinks = Array.from(cells).some(cell => {
+                    const content = cell.textContent.trim();
+                    return content && (content.startsWith('http://') || content.startsWith('https://'));
+                });
+
+                if (!hasLinks) {
+                    showFloatingAlert('Tabloda kontrol edilecek link bulunamadı!');
+                    button.classList.add('error-shake');
+                    setTimeout(() => button.classList.remove('error-shake'), 500);
+                    return;
+                }
+                
+                // İlk kontrolü hemen yap
+                checkAllLinks();
+                updateLastCheckTime();
+                startCountdown(minutes);
+                
+                // Sonraki kontroller için interval başlat
+                autoCheckInterval = setInterval(() => {
+                    checkAllLinks();
+                    updateLastCheckTime();
+                    startCountdown(minutes);
+                }, minutes * 60 * 1000);
+                
+                // Buton ve input durumlarını güncelle
+                button.textContent = 'Otomatik Kontrolü Durdur';
+                button.classList.remove('btn-success');
+                button.classList.add('btn-danger');
+                intervalInput.disabled = true;
+            } else {
+                // Otomatik kontrolü durdur
+                clearInterval(autoCheckInterval);
+                clearInterval(countdownInterval);
+                autoCheckInterval = null;
+                countdownInterval = null;
+                
+                // Buton ve input durumlarını güncelle
+                button.textContent = 'Otomatik Kontrolü Başlat';
+                button.classList.remove('btn-danger');
+                button.classList.add('btn-success');
+                intervalInput.disabled = false;
+                
+                // Sayaçları temizle
+                document.getElementById('lastCheckTime').textContent = 'Son Kontrol: -';
+                document.getElementById('nextCheckCounter').textContent = '';
+            }
+        }
+
+        function checkAllLinks() {
+            const cells = document.querySelectorAll('.cell-content');
+            const links = [];
+            const validCells = [];
+            
+            cells.forEach(cell => {
+                const content = cell.textContent.trim();
+                if (content && (content.startsWith('http://') || content.startsWith('https://'))) {
+                    links.push(content);
+                    validCells.push(cell);
+                }
+            });
+
+            if (links.length === 0) {
+                // Alert yerine geçici uyarı ve buton animasyonu
+                showFloatingAlert('Tabloda kontrol edilecek link bulunamadı!');
+                const button = document.getElementById('startAutoCheck');
+                button.classList.add('error-shake');
+                button.classList.remove('btn-success');
+                button.classList.add('btn-danger');
+                setTimeout(() => {
+                    button.classList.remove('error-shake');
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-success');
+                }, 500);
+
+                // Otomatik kontrolü durdur
+                if (autoCheckInterval !== null) {
+                    clearInterval(autoCheckInterval);
+                    clearInterval(countdownInterval);
+                    autoCheckInterval = null;
+                    countdownInterval = null;
+                    
+                    // Buton ve input durumlarını güncelle
+                    button.textContent = 'Otomatik Kontrolü Başlat';
+                    document.getElementById('checkInterval').disabled = false;
+                    
+                    // Sayaçları temizle
+                    document.getElementById('lastCheckTime').textContent = 'Son Kontrol: -';
+                    document.getElementById('nextCheckCounter').textContent = '';
+                }
+                return;
+            }
+
+            showLoading();
+            const formData = new FormData();
+            formData.append('urls', links.join('\n'));
+
+            fetch('/check_urls', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(results => {
+                displayResults(results);
+                
+                results.forEach((result, index) => {
+                    const cell = validCells[index];
+                    const link = links[index];
+                    
+                    cell.classList.remove('link-working', 'link-not-working');
+                    
+                    if (result.working) {
+                        cell.innerHTML = `<span class="link-working">${link} <i class="bi bi-check-circle-fill status-icon text-success"></i></span>`;
+                    } else {
+                        cell.innerHTML = `<span class="link-not-working">${link} <i class="bi bi-x-circle-fill status-icon text-danger"></i></span>`;
+                    }
+                });
+
+                // Otomatik kontrol başlatma
+                const button = document.getElementById('startAutoCheck');
+                const intervalInput = document.getElementById('checkInterval');
+                const minutes = parseInt(intervalInput.value);
+                
+                if (autoCheckInterval === null) {
+                    autoCheckInterval = setInterval(checkAllLinks, minutes * 60 * 1000);
+                    button.textContent = 'Otomatik Kontrolü Durdur';
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-danger');
+                    intervalInput.disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Hata oluştu:', error);
+                showFloatingAlert('Kontrol sırasında bir hata oluştu!');
+            })
+            .finally(() => {
+                hideLoading();
+            });
+        }
+
+        function showLoading() {
+            document.querySelector('.loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function displayResults(results) {
+            const resultList = document.getElementById('resultList');
+            resultList.innerHTML = '';
+
+            results.forEach(result => {
+                const div = document.createElement('div');
+                div.className = `result-item ${result.working ? 'working' : 'not-working'}`;
+                
+                let details = `
+                    <strong>URL:</strong> ${result.url}<br>
+                    <strong>Durum:</strong> ${result.working ? 'Çalışıyor' : 'Çalışmıyor'} 
+                    (${result.status})<br>
+                    ${result.response_time ? `<strong>Yanıt Süresi:</strong> ${result.response_time}<br>` : ''}
+                    ${result.error ? `<strong>Hata:</strong> ${result.error}<br>` : ''}
+                    ${result.content_type ? `<strong>İçerik Tipi:</strong> ${result.content_type}<br>` : ''}
+                    ${result.server ? `<strong>Sunucu:</strong> ${result.server}<br>` : ''}
+                    ${result.content ? `<strong>İçerik:</strong> ${result.content}` : ''}
+                `;
+
+                div.innerHTML = details;
+                resultList.appendChild(div);
+            });
+        }
+
+        function addRow() {
+            const tbody = document.querySelector('#dataTable tbody');
+            const columnCount = document.querySelectorAll('#headerRow th').length;
+            const newRow = document.createElement('tr');
+            
+            // İlk sütun (boş hücre)
+            const firstTd = document.createElement('td');
+            newRow.appendChild(firstTd);
+            
+            // Veri sütunları
+            for (let i = 1; i < columnCount; i++) {
+                const td = document.createElement('td');
+                const cellContainer = document.createElement('div');
+                cellContainer.className = 'cell-container';
+                
+                const content = document.createElement('div');
+                content.className = 'cell-content';
+                content.onclick = function() { editCell(this); };
+                
+                cellContainer.appendChild(content);
+                td.appendChild(cellContainer);
+                newRow.appendChild(td);
+            }
+            tbody.appendChild(newRow);
+        }
+
+        function toggleCellSelection(checkbox) {
+            const container = checkbox.closest('.cell-container');
+            if (checkbox.checked) {
+                container.classList.add('cell-selected');
+            } else {
+                container.classList.remove('cell-selected');
+            }
+        }
+
+        function addColumn() {
+            const table = document.getElementById('dataTable');
+            const headerRow = document.getElementById('headerRow');
+            const columnCount = headerRow.cells.length;
+            
+            const th = document.createElement('th');
+            th.innerHTML = `
+                <div style="position: relative;">
+                    <div class="header-content" onclick="editHeader(this)">
+                        Sütun ${columnCount}
+                        <input type="checkbox" onclick="selectColumn(${columnCount}, this); event.stopPropagation();" title="Tüm sütunu seç">
+                    </div>
+                    <span class="delete-column" onclick="deleteColumn(${columnCount})">&times;</span>
+                </div>
+            `;
+            headerRow.appendChild(th);
+            
+            const rows = table.getElementsByTagName('tr');
+            for (let i = 1; i < rows.length; i++) {
+                const td = document.createElement('td');
+                const cellContainer = document.createElement('div');
+                cellContainer.className = 'cell-container';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'cell-checkbox';
+                
+                const content = document.createElement('div');
+                content.className = 'cell-content';
+                content.onclick = function() { editCell(this); };
+                
+                cellContainer.appendChild(checkbox);
+                cellContainer.appendChild(content);
+                td.appendChild(cellContainer);
+                
+                rows[i].appendChild(td);
+            }
+        }
+
+        function deleteColumn(columnIndex) {
+            if (columnIndex === 0) {
+                alert('İlk sütun silinemez!');
+                return;
+            }
+            
+            const table = document.getElementById('dataTable');
+            const rows = table.getElementsByTagName('tr');
+            
+            for (let i = 0; i < rows.length; i++) {
+                rows[i].deleteCell(columnIndex);
+            }
+        }
+
+        function editCell(cellContent) {
+            if (cellContent.querySelector('input:not(.cell-checkbox)')) return;
+            
+            const value = cellContent.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = value;
+            input.className = 'cell-editor form-control';
+            
+            input.onblur = function() {
+                cellContent.textContent = this.value;
+                // Enter tuşuna basıldığında veya başka yere tıklandığında input'u kaldır
+                if (this.parentNode) {
+                    this.parentNode.removeChild(this);
+                }
+            };
+            
+            input.onkeydown = function(e) {
+                if (e.key === 'Enter') {
+                    cellContent.textContent = this.value;
+                    // Enter tuşuna basıldığında input'u kaldır
+                    if (this.parentNode) {
+                        this.parentNode.removeChild(this);
+                    }
+                }
+            };
+            
+            // Mevcut içeriği temizlemeden input'u ekle
+            cellContent.appendChild(input);
+            input.focus();
+        }
+
+        function toggleAllRows(checkbox) {
+            const checkboxes = document.querySelectorAll('.row-selector');
+            checkboxes.forEach(box => box.checked = checkbox.checked);
+            updateRowHighlights();
+        }
+
+        function updateRowHighlights() {
+            const rows = document.querySelectorAll('#dataTable tbody tr');
+            rows.forEach(row => {
+                const checkbox = row.querySelector('.row-selector');
+                if (checkbox.checked) {
+                    row.classList.add('selected-row');
+                } else {
+                    row.classList.remove('selected-row');
+                }
+            });
+        }
+
+        function deleteSelected() {
+            const rows = document.querySelectorAll('#dataTable tbody tr');
+            rows.forEach(row => {
+                const checkbox = row.querySelector('.row-selector');
+                if (checkbox.checked) {
+                    row.remove();
+                }
+            });
+        }
+
+        function checkSelectedLinks() {
+            const selectedCells = document.querySelectorAll('.selected-cell .cell-content');
+            const links = [];
+            const cells = [];
+            
+            selectedCells.forEach(cell => {
+                const content = cell.textContent.trim();
+                if (content && (content.startsWith('http://') || content.startsWith('https://'))) {
+                    links.push(content);
+                    cells.push(cell);
+                }
+            });
+
+            if (links.length === 0) {
+                alert('Lütfen kontrol edilecek link içeren hücreleri seçin!');
+                return;
+            }
+
+            showLoading();
+            const formData = new FormData();
+            formData.append('urls', links.join('\n'));
+
+            fetch('/check_urls', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(results => {
+                displayResults(results);
+                
+                results.forEach((result, index) => {
+                    const cell = cells[index];
+                    const link = links[index];
+                    
+                    cell.classList.remove('link-working', 'link-not-working');
+                    
+                    if (result.working) {
+                        cell.innerHTML = `<span class="link-working">${link} <i class="bi bi-check-circle-fill status-icon text-success"></i></span>`;
+                    } else {
+                        cell.innerHTML = `<span class="link-not-working">${link} <i class="bi bi-x-circle-fill status-icon text-danger"></i></span>`;
+                    }
+                });
+            })
+            .catch(error => {
+                alert('Hata oluştu: ' + error);
+            })
+            .finally(() => {
+                hideLoading();
+            });
+        }
+
+        function editHeader(headerContent) {
+            if (headerContent.querySelector('input')) return;
+            
+            const value = headerContent.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = value;
+            input.className = 'cell-editor form-control';
+            
+            input.onblur = function() {
+                headerContent.textContent = this.value;
+            };
+            
+            input.onkeydown = function(e) {
+                if (e.key === 'Enter') {
+                    headerContent.textContent = this.value;
+                }
+                e.stopPropagation(); // Prevent event bubbling
+            };
+            
+            headerContent.textContent = '';
+            headerContent.appendChild(input);
+            input.focus();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const firstCell = document.querySelector('#dataTable tbody tr td:nth-child(2)');
+            if (firstCell) {
+                const cellContainer = document.createElement('div');
+                cellContainer.className = 'cell-container';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'cell-checkbox';
+                
+                const content = document.createElement('div');
+                content.className = 'cell-content';
+                content.onclick = function() { editCell(this); };
+                
+                cellContainer.appendChild(checkbox);
+                cellContainer.appendChild(content);
+                firstCell.innerHTML = '';
+                firstCell.appendChild(cellContainer);
+            }
+            
+            // İlk sütun başlığını düzenlenebilir yapalım
+            const firstHeader = document.querySelector('#headerRow th:nth-child(2)');
+            if (firstHeader) {
+                firstHeader.innerHTML = `
+                    <div style="position: relative;">
+                        <div class="header-content" onclick="editHeader(this)">
+                            Sütun 1
+                            <input type="checkbox" onclick="selectColumn(1, this); event.stopPropagation();" title="Tüm sütunu seç">
+                        </div>
+                        <span class="delete-column" onclick="deleteColumn(1)">&times;</span>
+                    </div>
+                `;
+            }
+        });
+
+        document.getElementById('urlForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            const urls = document.getElementById('urlList').value;
+            formData.append('urls', urls);
+
+            showLoading();
+            try {
+                const response = await fetch('/check_urls', {
+                    method: 'POST',
+                    body: formData
+                });
+                const results = await response.json();
+                displayManualResults(results);
+            } catch (error) {
+                showFloatingAlert('Hata oluştu: ' + error);
+            }
+            hideLoading();
+        });
+
+        function displayManualResults(results) {
+            const resultDiv = document.getElementById('manualCheckResults');
+            resultDiv.innerHTML = '';
+
+            results.forEach(result => {
+                const div = document.createElement('div');
+                div.className = 'mb-2 p-2 border rounded';
+                div.style.backgroundColor = result.working ? '#d4edda' : '#f8d7da';
+                
+                const icon = result.working ? 
+                    '<i class="bi bi-check-circle-fill text-success"></i>' : 
+                    '<i class="bi bi-x-circle-fill text-danger"></i>';
+                
+                div.innerHTML = `
+                    <div class="d-flex align-items-center gap-2">
+                        ${icon}
+                        <div>
+                            <div class="fw-bold">${result.url}</div>
+                            <div class="small">
+                                Durum: ${result.working ? 'Çalışıyor' : 'Çalışmıyor'} (${result.status})<br>
+                                ${result.response_time ? `Yanıt Süresi: ${result.response_time}<br>` : ''}
+                                ${result.error ? `Hata: ${result.error}<br>` : ''}
+                                ${result.content_type ? `İçerik Tipi: ${result.content_type}<br>` : ''}
+                                ${result.server ? `Sunucu: ${result.server}<br>` : ''}
+                                ${result.content ? `İçerik: ${result.content}` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                resultDiv.appendChild(div);
+            });
+        }
+
+        async function importTableFromExcel(input) {
+            if (!input.files || !input.files[0]) return;
+
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+
+            showLoading();
+            try {
+                const response = await fetch('/read_excel', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Excel okuma hatası');
+                }
+
+                const data = await response.json();
+                
+                // Mevcut tabloyu temizle
+                const tbody = document.querySelector('#dataTable tbody');
+                tbody.innerHTML = '';
+                
+                // Sütun başlıklarını güncelle
+                const headerRow = document.querySelector('#dataTable thead tr');
+                headerRow.innerHTML = '';
+                
+                // İlk sütun (checkbox için)
+                const checkboxTh = document.createElement('th');
+                checkboxTh.innerHTML = '<input type="checkbox" onclick="selectEntireTable(this)" title="Tüm tabloyu seç">';
+                headerRow.appendChild(checkboxTh);
+                
+                // Sütun başlıklarını ekle
+                data.columns.forEach((column, index) => {
+                    const th = document.createElement('th');
+                    th.innerHTML = `
+                        <div style="position: relative;">
+                            <div class="header-content" onclick="editHeader(this)">
+                                ${column || `Sütun ${index + 1}`}
+                                <input type="checkbox" onclick="selectColumn(${index + 1}, this); event.stopPropagation();" title="Tüm sütunu seç">
+                            </div>
+                            <span class="delete-column" onclick="deleteColumn(${index + 1})">&times;</span>
+                        </div>
+                    `;
+                    headerRow.appendChild(th);
+                });
+                
+                // Verileri ekle
+                data.data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    
+                    // İlk sütun (checkbox için)
+                    const checkboxTd = document.createElement('td');
+                    tr.appendChild(checkboxTd);
+                    
+                    // Veri sütunları
+                    row.forEach(cell => {
+                        const td = document.createElement('td');
+                        const cellContainer = document.createElement('div');
+                        cellContainer.className = 'cell-container';
+                        
+                        const content = document.createElement('div');
+                        content.className = 'cell-content';
+                        content.textContent = cell || '';
+                        content.onclick = function() { editCell(this); };
+                        
+                        cellContainer.appendChild(content);
+                        td.appendChild(cellContainer);
+                        tr.appendChild(td);
+                    });
+                    
+                    tbody.appendChild(tr);
+                });
+
+                // Input'u temizle
+                input.value = '';
+                
+            } catch (error) {
+                showFloatingAlert('Excel dosyası yüklenirken hata oluştu: ' + error);
+            }
+            hideLoading();
+        }
+
+        function selectEntireTable(checkbox) {
+            const table = document.getElementById('dataTable');
+            const rows = table.getElementsByTagName('tr');
+            
+            // Tüm sütun başlıklarındaki checkbox'ları güncelle
+            const headerCheckboxes = table.querySelectorAll('th input[type="checkbox"]');
+            headerCheckboxes.forEach(box => {
+                if (box !== checkbox) { // A1 hücresindeki checkbox'ı hariç tut
+                    box.checked = checkbox.checked;
+                    const columnIndex = box.closest('th').cellIndex;
+                    selectColumn(columnIndex, box);
+                }
+            });
+        }
+
+        function selectRow(checkbox) {
+            const row = checkbox.closest('tr');
+            const checkboxes = row.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(box => box.checked = checkbox.checked);
+            updateRowHighlights();
+        }
+
+        function selectColumn(columnIndex, checkbox) {
+            const table = document.getElementById('dataTable');
+            const rows = table.getElementsByTagName('tr');
+            
+            for (let i = 1; i < rows.length; i++) {
+                const cell = rows[i].cells[columnIndex - 1];
+                if (cell) {
+                    const content = cell.querySelector('.cell-content');
+                    if (content && content.textContent.trim() && 
+                        (content.textContent.trim().startsWith('http://') || 
+                         content.textContent.trim().startsWith('https://'))) {
+                        if (checkbox.checked) {
+                            cell.classList.add('selected-cell');
+                        } else {
+                            cell.classList.remove('selected-cell');
+                        }
+                    }
+                }
+            }
+        }
+
+        function clearTable() {
+            if (confirm('Tabloyu temizlemek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+                const tbody = document.querySelector('#dataTable tbody');
+                tbody.innerHTML = '';
+                addRow(); // Boş bir satır ekle
+            }
+        }
+
+        function showFloatingAlert(message, duration = 3000) {
+            const alert = document.getElementById('alertFloating');
+            const messageSpan = document.getElementById('alertMessage');
+            messageSpan.textContent = message;
+            alert.style.display = 'block';
+            
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, duration);
+        }
+
+        function clearManualResults() {
+            document.getElementById('manualCheckResults').innerHTML = '';
+        }
+
+        function exportToExcel() {
+            const table = document.getElementById('dataTable');
+            const headers = [];
+            const rows = [];
+            
+            // Başlıkları topla
+            table.querySelectorAll('thead th').forEach((th, index) => {
+                if (index > 0) { // İlk sütunu (checkbox) atla
+                    const headerContent = th.querySelector('.header-content');
+                    headers.push(headerContent ? headerContent.textContent.trim() : `Sütun ${index}`);
+                }
+            });
+            
+            // Verileri topla
+            table.querySelectorAll('tbody tr').forEach(tr => {
+                const rowData = [];
+                tr.querySelectorAll('td').forEach((td, index) => {
+                    if (index > 0) { // İlk sütunu (checkbox) atla
+                        const content = td.querySelector('.cell-content');
+                        if (content) {
+                            const text = content.textContent.trim();
+                            const isWorking = content.querySelector('.link-working') !== null;
+                            const isNotWorking = content.querySelector('.link-not-working') !== null;
+                            
+                            rowData.push({
+                                text: text,
+                                working: isWorking ? true : (isNotWorking ? false : null)
+                            });
+                        } else {
+                            rowData.push({ text: '', working: null });
+                        }
+                    }
+                });
+                if (rowData.length > 0) {
+                    rows.push(rowData);
+                }
+            });
+            
+            // Verileri sunucuya gönder
+            fetch('/export_excel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ headers, rows })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Excel oluşturma hatası');
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'link_kontrol_sonuclari.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            })
+            .catch(error => {
+                showFloatingAlert('Excel dosyası oluşturulurken hata oluştu: ' + error);
+            });
+        }
+    </script>
+</body>
+</html> 
