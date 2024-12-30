@@ -18,65 +18,57 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 def check_url(url):
     try:
         start_time = time.time()
-        session = requests.Session()
-        
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7'
-        }
-        
-        # Kısa timeout süresi ile ilk bağlantı denemesi
-        response = session.get(url, timeout=2, headers=headers)
+        response = requests.get(url, timeout=10, verify=False)
         response_time = time.time() - start_time
         
-        # Yanıt başlıklarını al
-        content_type = response.headers.get('content-type', '')
-        server = response.headers.get('server', 'Remote Server')
+        # İçeriği kontrol et
+        content = response.text.strip()
         
-        # Çalışma durumunu belirle
-        is_working = False
+        # Header bilgilerine göre çalışıp çalışmadığını kontrol et
+        content_type = response.headers.get('content-type', 'Bilinmiyor')
+        server = response.headers.get('server', 'Bilinmiyor')
         
-        # Çalışma kriterleri:
-        # 1. Hızlı yanıt (2 saniyeden az)
-        # 2. Status code 200
-        # 3. Bağlantı başarıyla kuruldu
-        if (response.status_code == 200 and
-            response_time < 2 and
-            response.content):
-            is_working = True
+        # Eğer content-type ve server bilgileri varsa çalışıyor demektir
+        is_working = content_type != 'Bilinmiyor' and server != 'Bilinmiyor'
         
         return {
             'url': url,
-            'status': f"{'Çalışıyor' if is_working else 'Çalışmıyor'} ({response.status_code})",
+            'status': response.status_code,
             'working': is_working,
             'response_time': f"{response_time:.2f} saniye",
             'content_type': content_type,
             'server': server,
-            'content': response.text[:200] if hasattr(response, 'text') else ''
+            'content': content[:200] if content else ''  # İçeriği sınırla
         }
-        
+    except requests.exceptions.SSLError:
+        return {
+            'url': url,
+            'status': 'SSL Hatası',
+            'working': False,
+            'error': 'SSL sertifika hatası'
+        }
+    except requests.exceptions.ConnectionError:
+        return {
+            'url': url,
+            'status': 'Bağlantı Hatası',
+            'working': False,
+            'error': 'Sunucuya bağlanılamadı'
+        }
     except requests.exceptions.Timeout:
         return {
             'url': url,
-            'status': 'Çalışmıyor (Zaman Aşımı)',
+            'status': 'Zaman Aşımı',
             'working': False,
-            'response_time': '> 2.00 saniye',
-            'content_type': '-',
-            'server': '-',
-            'content': 'Sunucu yanıt vermedi (timeout)'
+            'error': 'Sunucu yanıt vermedi'
         }
-    except (requests.exceptions.ConnectionError, requests.exceptions.RequestException):
+    except requests.RequestException as e:
         return {
             'url': url,
-            'status': 'Çalışmıyor (Bağlantı Hatası)',
+            'status': 'Hata',
             'working': False,
-            'response_time': '-',
-            'content_type': '-',
-            'server': '-',
-            'content': 'Sunucuya bağlanılamadı'
+            'error': str(e)
         }
-        
+
 def process_urls(urls):
     with ThreadPoolExecutor(max_workers=5) as executor:  # Worker sayısını düşürdük
         results = list(executor.map(check_url, urls))
@@ -161,6 +153,4 @@ def export_excel():
 
 # Development sunucusu için
 if __name__ == '__main__':
-    # Render.com için port ayarı
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=False)  # Production'da debug kapalı 
