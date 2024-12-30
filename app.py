@@ -7,6 +7,7 @@ import time
 from openpyxl.styles import PatternFill
 from io import BytesIO
 import openpyxl
+import os
 
 app = Flask(__name__)
 
@@ -152,4 +153,6 @@ def export_excel():
 
 # Development sunucusu için
 if __name__ == '__main__':
-    app.run(debug=False)  # Production'da debug kapalı 
+    # Render.com için port ayarı
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
