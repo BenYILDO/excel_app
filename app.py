@@ -18,7 +18,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 def check_url(url):
     try:
         start_time = time.time()
-        session = requests.Session()
+        
+        # AllOrigins API kullanarak isteği yap
+        proxy_url = f'https://api.allorigins.win/get?url={requests.utils.quote(url)}'
         
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -26,52 +28,65 @@ def check_url(url):
             'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7'
         }
         
-        # Proxy kullanımını devre dışı bırak
-        session.trust_env = False
-        
-        # İlk istek
-        response = session.get(url, timeout=2, headers=headers, verify=False)
+        response = requests.get(proxy_url, timeout=5, headers=headers)
         response_time = time.time() - start_time
         
-        # Yanıt başlıklarını al
-        content_type = response.headers.get('content-type', 'Bilinmiyor')
-        server = response.headers.get('server', 'Bilinmiyor')
-        
-        # İçeriği al
-        try:
-            content = response.text.strip()
-        except:
-            content = ''
-        
-        # Çalışma durumunu belirle
-        is_working = False
-        
-        # Çalışma kriterleri:
-        # 1. Status code 200
-        # 2. Yanıt süresi 2 saniyeden az
-        # 3. İçerik var ve boş değil
-        if (response.status_code == 200 and
-            response_time < 2 and
-            content and
-            len(content) > 0):
-            is_working = True
-        
-        return {
-            'url': url,
-            'status': f"{'Çalışıyor' if is_working else 'Çalışmıyor'} ({response.status_code})",
-            'working': is_working,
-            'response_time': f"{response_time:.2f} saniye",
-            'content_type': content_type,
-            'server': server,
-            'content': content[:200] if content else 'İçerik alınamadı'
-        }
-        
+        if response.status_code == 200:
+            try:
+                data = response.json()
+                status_code = data.get('status', {}).get('http_code', 0)
+                content = data.get('contents', '')
+                
+                # Çalışma durumunu belirle
+                is_working = False
+                
+                # Çalışma kriterleri:
+                # 1. AllOrigins yanıtı başarılı
+                # 2. Orijinal site yanıtı başarılı
+                # 3. İçerik var ve boş değil
+                # 4. Yanıt süresi makul
+                if (status_code == 200 and
+                    content and
+                    len(content.strip()) > 0 and
+                    response_time < 5):
+                    is_working = True
+                
+                return {
+                    'url': url,
+                    'status': f"{'Çalışıyor' if is_working else 'Çalışmıyor'} ({status_code})",
+                    'working': is_working,
+                    'response_time': f"{response_time:.2f} saniye",
+                    'content_type': 'text/html',
+                    'server': 'Remote Server',
+                    'content': content[:200] if content else 'İçerik alınamadı'
+                }
+            except ValueError:
+                return {
+                    'url': url,
+                    'status': 'Çalışmıyor (Yanıt Hatası)',
+                    'working': False,
+                    'response_time': f"{response_time:.2f} saniye",
+                    'content_type': 'Bilinmiyor',
+                    'server': 'Bilinmiyor',
+                    'content': 'Yanıt işlenemedi'
+                }
+        else:
+            return {
+                'url': url,
+                'status': f'Çalışmıyor ({response.status_code})',
+                'working': False,
+                'response_time': f"{response_time:.2f} saniye",
+                'content_type': 'Bilinmiyor',
+                'server': 'Bilinmiyor',
+                'content': 'Proxy yanıt vermedi'
+            }
+            
     except requests.exceptions.Timeout:
         return {
             'url': url,
             'status': 'Çalışmıyor (Zaman Aşımı)',
             'working': False,
-            'response_time': '> 2.00 saniye',
+            'response_time': '> 5.00 saniye',
             'content_type': 'Bilinmiyor',
             'server': 'Bilinmiyor',
             'content': 'Sunucu yanıt vermedi (timeout)'
